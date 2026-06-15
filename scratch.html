@@ -469,6 +469,12 @@
     const redeemInput   = document.getElementById('redeemInput');
     const redeemBtn     = document.getElementById('redeemBtn');
 
+    function syncChances() {
+      chances = PrizeApp.getChances();
+      chancesNum.textContent = chances;
+      return chances;
+    }
+
     function pickPrize() {
       return PrizeApp.prizes[PrizeApp.pickIndex()];
     }
@@ -545,11 +551,6 @@
       const now  = new Date();
       const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
 
-      if (PrizeApp.isRetry(currentPrize)) {
-        chances++;
-        chancesNum.textContent = chances;
-      }
-
       history.unshift({ prize: currentPrize.label, emoji: currentPrize.emoji, time });
       renderHistory();
 
@@ -569,7 +570,7 @@
       if (cardReady && !revealed) return;
       if (chances <= 0) return;
 
-      chances--;
+      chances = PrizeApp.changeChances(-1);
       chancesNum.textContent = chances;
 
       currentPrize = pickPrize();
@@ -608,7 +609,7 @@
       if (!code) return;
       const result = PrizeApp.redeem(code);
       if (result.ok) {
-        chances += result.bonus;
+        chances = result.chances;
         chancesNum.textContent = chances;
         if (revealed || !cardReady) newCardBtn.disabled = false;
         redeemInput.value = '';
@@ -696,9 +697,8 @@
 
     createParticles();
 
-    PrizeApp.load().then((config) => {
-      chances = config.initialChances ?? 5;
-      chancesNum.textContent = chances;
+    PrizeApp.load().then(() => {
+      syncChances();
       newCard();
     }).catch((err) => {
       console.error(err);

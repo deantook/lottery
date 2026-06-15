@@ -56,11 +56,10 @@
       "win": false
     },
     {
-      "label": "再来一次",
-      "emoji": "🔄",
+      "label": "20 元红包",
+      "emoji": "💴",
       "color": "#1abc9c",
-      "weight": 10,
-      "retry": true
+      "weight": 10
     },
     {
       "label": "神秘礼盒",

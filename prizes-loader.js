@@ -4,6 +4,7 @@ window.PrizeApp = {
   storageKey: 'zyclub_redeem_records',
   deviceIdKey: 'zyclub_device_id',
   legacyStorageKey: 'zyclub_used_redeem_codes',
+  chancesStorageKey: 'zyclub_chances',
 
   async load() {
     const res = await fetch('prizes.json');
@@ -84,6 +85,25 @@ window.PrizeApp = {
     return codes.map(String);
   },
 
+  getChances() {
+    const stored = localStorage.getItem(this.chancesStorageKey);
+    if (stored !== null) {
+      const value = parseInt(stored, 10);
+      return Number.isFinite(value) && value >= 0 ? value : 0;
+    }
+    return this.config.initialChances ?? 0;
+  },
+
+  setChances(value) {
+    const next = Math.max(0, Math.floor(Number(value)) || 0);
+    localStorage.setItem(this.chancesStorageKey, String(next));
+    return next;
+  },
+
+  changeChances(delta) {
+    return this.setChances(this.getChances() + delta);
+  },
+
   redeem(code) {
     const normalized = String(code).trim();
     if (!normalized) return { ok: false, reason: 'empty' };
@@ -94,7 +114,9 @@ window.PrizeApp = {
       return { ok: false, reason: 'used_on_device' };
     }
     this.markCodeUsed(normalized);
-    return { ok: true, bonus: this.config.redeemBonus ?? 1 };
+    const bonus = this.config.redeemBonus ?? 1;
+    const chances = this.changeChances(bonus);
+    return { ok: true, bonus, chances };
   },
 
   pickIndex() {

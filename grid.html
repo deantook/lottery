@@ -422,6 +422,12 @@
       return PrizeApp.prizes;
     }
 
+    function syncChances() {
+      chances = PrizeApp.getChances();
+      chancesNum.textContent = chances;
+      return chances;
+    }
+
     function buildGrid() {
       const prizes = getPrizes();
       grid.innerHTML = '';
@@ -450,7 +456,7 @@
     function startLottery() {
       if (running || chances <= 0) return;
       running = true;
-      chances--;
+      chances = PrizeApp.changeChances(-1);
       chancesNum.textContent = chances;
       cells[4].classList.add('disabled');
 
@@ -490,12 +496,6 @@
       const now   = new Date();
       const time  = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
 
-      if (PrizeApp.isRetry(prize)) {
-        chances++;
-        chancesNum.textContent = chances;
-        cells[4].classList.remove('disabled');
-      }
-
       history.unshift({ prize: prize.label, emoji: prize.emoji, time });
       renderHistory();
 
@@ -530,7 +530,7 @@
       if (!code) return;
       const result = PrizeApp.redeem(code);
       if (result.ok) {
-        chances += result.bonus;
+        chances = result.chances;
         chancesNum.textContent = chances;
         if (!running) cells[4].classList.remove('disabled');
         redeemInput.value = '';
@@ -580,13 +580,13 @@
 
     createParticles();
 
-    PrizeApp.load().then((config) => {
-      chances = config.initialChances ?? 5;
-      chancesNum.textContent = chances;
+    PrizeApp.load().then(() => {
+      syncChances();
       if (PrizeApp.prizes.length !== 8) {
         alert('九宫格抽奖需要 prizes.json 中配置 8 个奖品');
       }
       buildGrid();
+      if (chances <= 0) cells[4].classList.add('disabled');
     }).catch((err) => {
       console.error(err);
       alert('奖品配置加载失败，请通过本地服务器访问页面');

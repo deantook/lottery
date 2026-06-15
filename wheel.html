@@ -488,6 +488,12 @@
       return PrizeApp.prizes;
     }
 
+    function syncChances() {
+      chances = PrizeApp.getChances();
+      chancesNum.textContent = chances;
+      return chances;
+    }
+
     function initCanvas() {
       const size = canvas.parentElement.offsetWidth;
       canvas.width  = size * 2;
@@ -539,7 +545,7 @@
       if (spinning || chances <= 0) return;
       spinning = true;
       spinBtn.disabled = true;
-      chances--;
+      chances = PrizeApp.changeChances(-1);
       chancesNum.textContent = chances;
 
       const prizes = getPrizes();
@@ -563,12 +569,6 @@
       const prize = getPrizes()[idx];
       const now   = new Date();
       const time  = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-
-      if (PrizeApp.isRetry(prize)) {
-        chances++;
-        chancesNum.textContent = chances;
-        spinBtn.disabled = false;
-      }
 
       history.unshift({ prize: prize.label, emoji: prize.emoji, time });
       renderHistory();
@@ -610,7 +610,7 @@
       if (!code) return;
       const result = PrizeApp.redeem(code);
       if (result.ok) {
-        chances += result.bonus;
+        chances = result.chances;
         chancesNum.textContent = chances;
         if (!spinning) spinBtn.disabled = false;
         redeemInput.value = '';
@@ -667,9 +667,9 @@
 
     createParticles();
 
-    PrizeApp.load().then((config) => {
-      chances = config.initialChances ?? 5;
-      chancesNum.textContent = chances;
+    PrizeApp.load().then(() => {
+      syncChances();
+      spinBtn.disabled = chances <= 0;
       renderPrizeList();
       initCanvas();
     }).catch((err) => {
