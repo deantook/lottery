@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>九宫格抽奖 - 幸运抽奖中心</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0c29;
+      --bg2: #302b63;
+      --bg3: #24243e;
+      --gold: #ffd700;
+      --gold2: #ffaa00;
+      --accent: #ff6b6b;
+      --text: #f0f0f0;
+      --muted: #aaa;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 50%, var(--bg3) 100%);
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    .particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--gold);
+      border-radius: 50%;
+      opacity: 0;
+      animation: float-up linear infinite;
+    }
+    @keyframes float-up {
+      0%   { opacity: 0; transform: translateY(100vh) scale(0); }
+      10%  { opacity: 0.8; }
+      90%  { opacity: 0.4; }
+      100% { opacity: 0; transform: translateY(-10vh) scale(1); }
+    }
+
+    .back-btn {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 50;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.25rem;
+      color: var(--text);
+      text-decoration: none;
+      transition: color 0.2s, opacity 0.2s;
+    }
+    .back-btn svg {
+      width: 1.5rem;
+      height: 1.5rem;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .back-btn:hover {
+      color: var(--gold);
+    }
+
+    header {
+      text-align: center;
+      padding: 2rem 1rem 1rem;
+      z-index: 1;
+    }
+    .organizer-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.45rem 1.25rem;
+      margin-bottom: 1rem;
+      background: rgba(255,215,0,0.08);
+      border: 1px solid rgba(255,215,0,0.35);
+      border-radius: 50px;
+      letter-spacing: 0.06em;
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: var(--gold);
+    }
+    header h1 {
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      background: linear-gradient(90deg, var(--gold), #fff, var(--gold2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.1em;
+      filter: drop-shadow(0 0 20px rgba(255,215,0,0.4));
+    }
+    header p {
+      color: var(--muted);
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .main {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 1rem 1.5rem 3rem;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .grid-wrap {
+      flex-shrink: 0;
+      padding: 12px;
+      background: linear-gradient(145deg, var(--gold), var(--gold2));
+      border-radius: 20px;
+      box-shadow: 0 0 40px rgba(255,215,0,0.3);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      width: min(320px, 85vw);
+    }
+    .grid-cell {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(26, 26, 46, 0.95);
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.08);
+      font-size: 0.75rem;
+      text-align: center;
+      padding: 0.4rem;
+      transition: background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    }
+    .grid-cell .emoji { font-size: 1.6rem; margin-bottom: 0.25rem; }
+    .grid-cell .label { line-height: 1.3; color: var(--muted); }
+    .grid-cell.active {
+      background: rgba(255,215,0,0.2);
+      border-color: var(--gold);
+      box-shadow: 0 0 20px rgba(255,215,0,0.4);
+      transform: scale(1.05);
+    }
+    .grid-cell.active .label { color: var(--gold); font-weight: bold; }
+    .grid-cell.center {
+      background: linear-gradient(145deg, var(--gold), var(--gold2));
+      border-color: #fff;
+      cursor: pointer;
+      font-weight: bold;
+      color: #333;
+    }
+    .grid-cell.center:hover:not(.disabled) {
+      transform: scale(1.05);
+      box-shadow: 0 4px 20px rgba(255,215,0,0.5);
+    }
+    .grid-cell.center.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .grid-cell.center .emoji { font-size: 2rem; }
+    .grid-cell.center .label { color: #333; font-size: 1rem; }
+
+    .panel {
+      flex: 1;
+      min-width: 240px;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 1.2rem;
+      backdrop-filter: blur(10px);
+    }
+    .card h3 {
+      font-size: 0.85rem;
+      color: var(--gold);
+      letter-spacing: 0.15em;
+      margin-bottom: 0.8rem;
+    }
+
+    .chances {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chances-num {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: var(--gold);
+      line-height: 1;
+    }
+    .chances-label { color: var(--muted); font-size: 0.85rem; }
+
+    .redeem-wrap {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .redeem-input {
+      flex: 1;
+      min-width: 0;
+      padding: 0.55rem 0.75rem;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .redeem-input:focus { border-color: rgba(255,215,0,0.5); }
+    .redeem-input::placeholder { color: var(--muted); }
+    .redeem-btn {
+      flex-shrink: 0;
+      padding: 0.55rem 0.9rem;
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .redeem-btn:hover { transform: scale(1.03); }
+    .redeem-tip {
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      min-height: 1.2em;
+    }
+    .redeem-tip.success { color: #2ecc71; }
+    .redeem-tip.error { color: var(--accent); }
+
+    .history-list {
+      list-style: none;
+      max-height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .history-list li {
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding: 0.3rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      justify-content: space-between;
+    }
+    .history-list li span.prize { color: var(--text); }
+    .history-list li.empty-msg { color: var(--muted); font-style: italic; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .modal {
+      background: linear-gradient(160deg, #1a1a2e, #16213e);
+      border: 2px solid var(--gold);
+      border-radius: 24px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      max-width: 360px;
+      width: 90%;
+      transform: scale(0.7);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 0 60px rgba(255,215,0,0.3);
+    }
+    .modal-overlay.show .modal { transform: scale(1); }
+    .modal-emoji { font-size: 4rem; margin-bottom: 0.5rem; animation: bounce 0.6s ease infinite alternate; }
+    @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+    .modal h2 { font-size: 1.6rem; color: var(--gold); margin-bottom: 0.5rem; }
+    .modal p  { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.95rem; }
+    .modal-btn {
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      border: none;
+      border-radius: 50px;
+      padding: 0.75rem 2.5rem;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .modal-btn:hover { transform: scale(1.05); }
+
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      top: -10px;
+      z-index: 200;
+      pointer-events: none;
+      animation: confetti-fall linear forwards;
+    }
+    @keyframes confetti-fall {
+      to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+
+    .history-list::-webkit-scrollbar { width: 4px; }
+    .history-list::-webkit-scrollbar-thumb { background: rgba(255,215,0,0.3); border-radius: 2px; }
+
+    .organizer-footer {
+      margin-top: auto;
+      padding: 1.5rem 1rem 2rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      z-index: 1;
+      letter-spacing: 0.05em;
+    }
+    .organizer-footer strong {
+      color: var(--gold);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <a class="back-btn" href="index.html" aria-label="返回首页">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+  </a>
+  <div class="particles" id="particles"></div>
+
+  <header>
+    <div class="organizer-badge">臻瑜电竞 CLUB</div>
+    <h1>✦ 九宫格抽奖 ✦</h1>
+    <p>点击开始，跑马灯为你揭晓幸运大奖！</p>
+  </header>
+
+  <div class="main">
+    <div class="grid-wrap">
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="panel">
+      <div class="card">
+        <div class="chances">
+          <div>
+            <div class="chances-num" id="chancesNum">5</div>
+            <div class="chances-label">剩余抽奖次数</div>
+          </div>
+          <div style="font-size:2.5rem">🎟️</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>兑换次数</h3>
+        <div class="redeem-wrap">
+          <input type="text" class="redeem-input" id="redeemInput" placeholder="输入兑换码" autocomplete="off">
+          <button class="redeem-btn" id="redeemBtn">兑换</button>
+        </div>
+        <p class="redeem-tip" id="redeemTip"></p>
+      </div>
+
+      <div class="card">
+        <h3>中奖记录</h3>
+        <ul class="history-list" id="historyList">
+          <li class="empty-msg">暂无记录，快去抽奖吧！</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer class="organizer-footer"><strong>臻瑜电竞 CLUB</strong></footer>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-emoji" id="modalEmoji">🎉</div>
+      <h2 id="modalTitle">恭喜中奖！</h2>
+      <p id="modalDesc">您获得了 iPhone 16 Pro</p>
+      <button class="modal-btn" id="modalBtn">太棒了！</button>
+    </div>
+  </div>
+
+  <script>
+    const PRIZES = [
+      { label: 'iPhone 16 Pro', emoji: '📱', weight: 1  },
+      { label: 'AirPods Pro',   emoji: '🎧', weight: 3  },
+      { label: '100 元红包',    emoji: '🧧', weight: 8  },
+      { label: '50 元红包',     emoji: '💰', weight: 12 },
+      { label: '谢谢参与',      emoji: '😅', weight: 30 },
+      { label: '再来一次',      emoji: '🔄', weight: 10 },
+      { label: '神秘礼盒',      emoji: '🎁', weight: 5  },
+      { label: '10 元红包',     emoji: '💵', weight: 15 },
+    ];
+
+    // 跑马灯顺序：外圈 8 格，跳过中心
+    const ORDER = [0, 1, 2, 5, 8, 7, 6, 3];
+
+    let chances = 5;
+    let running = false;
+    let history = [];
+    let cells = [];
+
+    const grid        = document.getElementById('grid');
+    const chancesNum  = document.getElementById('chancesNum');
+    const historyList = document.getElementById('historyList');
+    const modal       = document.getElementById('modal');
+    const modalEmoji  = document.getElementById('modalEmoji');
+    const modalTitle  = document.getElementById('modalTitle');
+    const modalDesc   = document.getElementById('modalDesc');
+    const modalBtn    = document.getElementById('modalBtn');
+    const redeemInput = document.getElementById('redeemInput');
+    const redeemBtn   = document.getElementById('redeemBtn');
+    const redeemTip   = document.getElementById('redeemTip');
+
+    const REDEEM_CODE = 'AAAAAA';
+    const REDEEM_BONUS = 1;
+
+    function buildGrid() {
+      grid.innerHTML = '';
+      cells = [];
+      for (let i = 0; i < 9; i++) {
+        const el = document.createElement('div');
+        el.className = 'grid-cell';
+        if (i === 4) {
+          el.classList.add('center');
+          el.innerHTML = '<span class="emoji">🎲</span><span class="label">开始</span>';
+          el.addEventListener('click', startLottery);
+        } else {
+          const prize = PRIZES[i < 4 ? i : i - 1];
+          el.innerHTML = `<span class="emoji">${prize.emoji}</span><span class="label">${prize.label}</span>`;
+          el.dataset.index = String(i < 4 ? i : i - 1);
+        }
+        grid.appendChild(el);
+        cells.push(el);
+      }
+    }
+
+    function pickPrize() {
+      const total = PRIZES.reduce((s, p) => s + p.weight, 0);
+      let rand = Math.random() * total;
+      for (let i = 0; i < PRIZES.length; i++) {
+        rand -= PRIZES[i].weight;
+        if (rand <= 0) return i;
+      }
+      return PRIZES.length - 1;
+    }
+
+    function clearActive() {
+      cells.forEach(c => c.classList.remove('active'));
+    }
+
+    function startLottery() {
+      if (running || chances <= 0) return;
+      running = true;
+      chances--;
+      chancesNum.textContent = chances;
+      cells[4].classList.add('disabled');
+
+      const targetIdx = pickPrize();
+      const targetGridPos = targetIdx < 4 ? targetIdx : targetIdx + 1;
+      const targetOrderIdx = ORDER.indexOf(targetGridPos);
+      const finalSteps = ORDER.length * 4 + targetOrderIdx;
+
+      let step = 0;
+      let speed = 60;
+
+      function tick() {
+        clearActive();
+        const pos = ORDER[step % ORDER.length];
+        cells[pos].classList.add('active');
+
+        if (step >= finalSteps) {
+          setTimeout(() => handleResult(targetIdx), 400);
+          return;
+        }
+
+        step++;
+        if (step > finalSteps - 8) speed += 30;
+        else if (step > 8) speed = Math.min(speed + 5, 180);
+        setTimeout(tick, speed);
+      }
+
+      tick();
+    }
+
+    function handleResult(idx) {
+      running = false;
+      cells[4].classList.remove('disabled');
+      if (chances <= 0) cells[4].classList.add('disabled');
+
+      const prize = PRIZES[idx];
+      const now   = new Date();
+      const time  = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+      if (prize.label === '再来一次') {
+        chances++;
+        chancesNum.textContent = chances;
+        cells[4].classList.remove('disabled');
+      }
+
+      history.unshift({ prize: prize.label, emoji: prize.emoji, time });
+      renderHistory();
+
+      const isWin = prize.label !== '谢谢参与';
+      modalEmoji.textContent = prize.emoji;
+      modalTitle.textContent = isWin ? '恭喜中奖！' : '很遗憾…';
+      modalDesc.textContent  = isWin
+        ? `您获得了 ${prize.label}，请截图保存！`
+        : `${prize.label}，下次一定好运！`;
+      modal.classList.add('show');
+
+      if (isWin) launchConfetti();
+    }
+
+    function renderHistory() {
+      historyList.innerHTML = history.slice(0, 10).map(h =>
+        `<li><span class="prize">${h.emoji} ${h.prize}</span><span>${h.time}</span></li>`
+      ).join('');
+    }
+
+    function redeemChances() {
+      const code = redeemInput.value.trim();
+      if (code === REDEEM_CODE) {
+        chances += REDEEM_BONUS;
+        chancesNum.textContent = chances;
+        if (!running) cells[4].classList.remove('disabled');
+        redeemInput.value = '';
+        redeemTip.textContent = `兑换成功，已获得 ${REDEEM_BONUS} 次抽奖机会！`;
+        redeemTip.className = 'redeem-tip success';
+      } else if (code) {
+        redeemTip.textContent = '兑换码无效，请重新输入';
+        redeemTip.className = 'redeem-tip error';
+      }
+      setTimeout(() => {
+        redeemTip.textContent = '';
+        redeemTip.className = 'redeem-tip';
+      }, 3000);
+    }
+
+    function launchConfetti() {
+      const colors = ['#ffd700','#ff6b6b','#6bcb77','#4d96ff','#ff6bff','#ff9f43'];
+      for (let i = 0; i < 80; i++) {
+        setTimeout(() => {
+          const el = document.createElement('div');
+          el.className = 'confetti';
+          el.style.left = Math.random() * 100 + 'vw';
+          el.style.background = colors[Math.floor(Math.random() * colors.length)];
+          el.style.animationDuration = (2 + Math.random() * 2) + 's';
+          el.style.width  = (6 + Math.random() * 8) + 'px';
+          el.style.height = (6 + Math.random() * 8) + 'px';
+          el.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+          document.body.appendChild(el);
+          setTimeout(() => el.remove(), 4000);
+        }, i * 30);
+      }
+    }
+
+    function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 30; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + 'vw';
+        p.style.animationDuration = (4 + Math.random() * 6) + 's';
+        p.style.animationDelay = (Math.random() * 6) + 's';
+        container.appendChild(p);
+      }
+    }
+
+    modalBtn.addEventListener('click', () => modal.classList.remove('show'));
+    redeemBtn.addEventListener('click', redeemChances);
+    redeemInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') redeemChances();
+    });
+
+    createParticles();
+    buildGrid();
+  </script>
+</body>
+</html>

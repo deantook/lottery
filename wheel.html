@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>转盘抽奖 - 幸运抽奖中心</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0c29;
+      --bg2: #302b63;
+      --bg3: #24243e;
+      --gold: #ffd700;
+      --gold2: #ffaa00;
+      --accent: #ff6b6b;
+      --text: #f0f0f0;
+      --muted: #aaa;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 50%, var(--bg3) 100%);
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    .particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--gold);
+      border-radius: 50%;
+      opacity: 0;
+      animation: float-up linear infinite;
+    }
+    @keyframes float-up {
+      0%   { opacity: 0; transform: translateY(100vh) scale(0); }
+      10%  { opacity: 0.8; }
+      90%  { opacity: 0.4; }
+      100% { opacity: 0; transform: translateY(-10vh) scale(1); }
+    }
+
+    .back-btn {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 50;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.25rem;
+      color: var(--text);
+      text-decoration: none;
+      transition: color 0.2s, opacity 0.2s;
+    }
+    .back-btn svg {
+      width: 1.5rem;
+      height: 1.5rem;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .back-btn:hover {
+      color: var(--gold);
+    }
+
+    header {
+      text-align: center;
+      padding: 2rem 1rem 1rem;
+      z-index: 1;
+    }
+    .organizer-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.45rem 1.25rem;
+      margin-bottom: 1rem;
+      background: rgba(255,215,0,0.08);
+      border: 1px solid rgba(255,215,0,0.35);
+      border-radius: 50px;
+      letter-spacing: 0.06em;
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: var(--gold);
+    }
+    header h1 {
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      background: linear-gradient(90deg, var(--gold), #fff, var(--gold2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.1em;
+      filter: drop-shadow(0 0 20px rgba(255,215,0,0.4));
+    }
+    header p {
+      color: var(--muted);
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .main {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 1rem 1.5rem 3rem;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .wheel-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    .wheel-outer {
+      width: min(340px, 80vw);
+      height: min(340px, 80vw);
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, var(--gold), var(--gold2), var(--gold), var(--gold2));
+      padding: 8px;
+      box-shadow: 0 0 40px rgba(255,215,0,0.3), 0 0 80px rgba(255,107,107,0.15);
+      animation: glow-pulse 3s ease-in-out infinite;
+    }
+    @keyframes glow-pulse {
+      0%, 100% { box-shadow: 0 0 40px rgba(255,215,0,0.3), 0 0 80px rgba(255,107,107,0.15); }
+      50%       { box-shadow: 0 0 60px rgba(255,215,0,0.5), 0 0 100px rgba(255,107,107,0.25); }
+    }
+    .wheel-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      overflow: hidden;
+      position: relative;
+      transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+    }
+    canvas#wheel {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .pointer {
+      position: absolute;
+      top: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 16px solid transparent;
+      border-right: 16px solid transparent;
+      border-top: 36px solid var(--accent);
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+      z-index: 10;
+    }
+    .pointer::after {
+      content: '';
+      position: absolute;
+      top: -38px;
+      left: -8px;
+      width: 16px;
+      height: 16px;
+      background: var(--accent);
+      border-radius: 50%;
+    }
+
+    .center-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, var(--gold), var(--gold2));
+      border: 4px solid #fff;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #333;
+      z-index: 20;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+      letter-spacing: 0.05em;
+    }
+    .center-btn:hover:not(:disabled) {
+      transform: translate(-50%, -50%) scale(1.08);
+      box-shadow: 0 6px 30px rgba(255,215,0,0.6);
+    }
+    .center-btn:active:not(:disabled) {
+      transform: translate(-50%, -50%) scale(0.95);
+    }
+    .center-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .panel {
+      flex: 1;
+      min-width: 240px;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 1.2rem;
+      backdrop-filter: blur(10px);
+    }
+    .card h3 {
+      font-size: 0.85rem;
+      color: var(--gold);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.8rem;
+    }
+
+    .prize-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .prize-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.9rem;
+      padding: 0.4rem 0.6rem;
+      border-radius: 8px;
+    }
+    .prize-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .chances {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chances-num {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: var(--gold);
+      line-height: 1;
+    }
+    .chances-label { color: var(--muted); font-size: 0.85rem; }
+
+    .redeem-wrap {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .redeem-input {
+      flex: 1;
+      min-width: 0;
+      padding: 0.55rem 0.75rem;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .redeem-input:focus { border-color: rgba(255,215,0,0.5); }
+    .redeem-input::placeholder { color: var(--muted); }
+    .redeem-btn {
+      flex-shrink: 0;
+      padding: 0.55rem 0.9rem;
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .redeem-btn:hover { transform: scale(1.03); }
+    .redeem-tip {
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      min-height: 1.2em;
+    }
+    .redeem-tip.success { color: #2ecc71; }
+    .redeem-tip.error { color: var(--accent); }
+
+    .history-list {
+      list-style: none;
+      max-height: 160px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .history-list li {
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding: 0.3rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      justify-content: space-between;
+    }
+    .history-list li span.prize { color: var(--text); }
+    .history-list li.empty-msg { color: var(--muted); font-style: italic; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .modal {
+      background: linear-gradient(160deg, #1a1a2e, #16213e);
+      border: 2px solid var(--gold);
+      border-radius: 24px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      max-width: 360px;
+      width: 90%;
+      transform: scale(0.7);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 0 60px rgba(255,215,0,0.3);
+    }
+    .modal-overlay.show .modal { transform: scale(1); }
+    .modal-emoji { font-size: 4rem; margin-bottom: 0.5rem; animation: bounce 0.6s ease infinite alternate; }
+    @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+    .modal h2 { font-size: 1.6rem; color: var(--gold); margin-bottom: 0.5rem; }
+    .modal p  { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.95rem; }
+    .modal-btn {
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      border: none;
+      border-radius: 50px;
+      padding: 0.75rem 2.5rem;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .modal-btn:hover { transform: scale(1.05); }
+
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      top: -10px;
+      z-index: 200;
+      pointer-events: none;
+      animation: confetti-fall linear forwards;
+    }
+    @keyframes confetti-fall {
+      to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+
+    .history-list::-webkit-scrollbar { width: 4px; }
+    .history-list::-webkit-scrollbar-thumb { background: rgba(255,215,0,0.3); border-radius: 2px; }
+
+    .organizer-footer {
+      margin-top: auto;
+      padding: 1.5rem 1rem 2rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      z-index: 1;
+      letter-spacing: 0.05em;
+    }
+    .organizer-footer strong {
+      color: var(--gold);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <a class="back-btn" href="index.html" aria-label="返回首页">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+  </a>
+  <div class="particles" id="particles"></div>
+
+  <header>
+    <div class="organizer-badge">臻瑜电竞 CLUB</div>
+    <h1>✦ 幸运大转盘 ✦</h1>
+    <p>转动命运之轮，赢取惊喜好礼！</p>
+  </header>
+
+  <div class="main">
+    <div class="wheel-wrap">
+      <div class="pointer"></div>
+      <div class="wheel-outer">
+        <div class="wheel-inner" id="wheelInner">
+          <canvas id="wheel"></canvas>
+        </div>
+      </div>
+      <button class="center-btn" id="spinBtn">抽奖</button>
+    </div>
+
+    <div class="panel">
+      <div class="card">
+        <div class="chances">
+          <div>
+            <div class="chances-num" id="chancesNum">5</div>
+            <div class="chances-label">剩余抽奖次数</div>
+          </div>
+          <div style="font-size:2.5rem">🎟️</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>兑换次数</h3>
+        <div class="redeem-wrap">
+          <input type="text" class="redeem-input" id="redeemInput" placeholder="输入兑换码" autocomplete="off">
+          <button class="redeem-btn" id="redeemBtn">兑换</button>
+        </div>
+        <p class="redeem-tip" id="redeemTip"></p>
+      </div>
+
+      <div class="card">
+        <h3>奖品一览</h3>
+        <ul class="prize-list" id="prizeList"></ul>
+      </div>
+
+      <div class="card">
+        <h3>中奖记录</h3>
+        <ul class="history-list" id="historyList">
+          <li class="empty-msg">暂无记录，快去抽奖吧！</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer class="organizer-footer"><strong>臻瑜电竞 CLUB</strong></footer>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-emoji" id="modalEmoji">🎉</div>
+      <h2 id="modalTitle">恭喜中奖！</h2>
+      <p id="modalDesc">您获得了 iPhone 16 Pro</p>
+      <button class="modal-btn" id="modalBtn">太棒了！</button>
+    </div>
+  </div>
+
+  <script>
+    const PRIZES = [
+      { label: 'iPhone 16 Pro', emoji: '📱', color: '#e74c3c', weight: 1  },
+      { label: 'AirPods Pro',   emoji: '🎧', color: '#3498db', weight: 3  },
+      { label: '100 元红包',    emoji: '🧧', color: '#e67e22', weight: 8  },
+      { label: '50 元红包',     emoji: '💰', color: '#f1c40f', weight: 12 },
+      { label: '谢谢参与',      emoji: '😅', color: '#95a5a6', weight: 30 },
+      { label: '再来一次',      emoji: '🔄', color: '#1abc9c', weight: 10 },
+      { label: '神秘礼盒',      emoji: '🎁', color: '#9b59b6', weight: 5  },
+      { label: '10 元红包',     emoji: '💵', color: '#2ecc71', weight: 15 },
+    ];
+
+    let chances = 5;
+    let spinning = false;
+    let currentRotation = 0;
+    let history = [];
+
+    const wheelInner  = document.getElementById('wheelInner');
+    const canvas      = document.getElementById('wheel');
+    const ctx         = canvas.getContext('2d');
+    const spinBtn     = document.getElementById('spinBtn');
+    const chancesNum  = document.getElementById('chancesNum');
+    const prizeList   = document.getElementById('prizeList');
+    const historyList = document.getElementById('historyList');
+    const modal       = document.getElementById('modal');
+    const modalEmoji  = document.getElementById('modalEmoji');
+    const modalTitle  = document.getElementById('modalTitle');
+    const modalDesc   = document.getElementById('modalDesc');
+    const modalBtn    = document.getElementById('modalBtn');
+    const redeemInput = document.getElementById('redeemInput');
+    const redeemBtn   = document.getElementById('redeemBtn');
+    const redeemTip   = document.getElementById('redeemTip');
+
+    const REDEEM_CODE = 'AAAAAA';
+    const REDEEM_BONUS = 1;
+
+    function initCanvas() {
+      const size = canvas.parentElement.offsetWidth;
+      canvas.width  = size * 2;
+      canvas.height = size * 2;
+      ctx.scale(2, 2);
+      drawWheel();
+    }
+
+    function drawWheel() {
+      const size = canvas.width / 2;
+      const cx = size / 2, cy = size / 2, r = size / 2 - 2;
+      const n = PRIZES.length;
+      const slice = (2 * Math.PI) / n;
+
+      PRIZES.forEach((prize, i) => {
+        const start = i * slice - Math.PI / 2;
+        const end   = start + slice;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, start, end);
+        ctx.closePath();
+        ctx.fillStyle = prize.color;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(start + slice / 2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${Math.floor(size / 22)}px sans-serif`;
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 4;
+        ctx.fillText(`${prize.emoji} ${prize.label}`, r - 12, 5);
+        ctx.restore();
+      });
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.12, 0, 2 * Math.PI);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+    }
+
+    function pickPrize() {
+      const total = PRIZES.reduce((s, p) => s + p.weight, 0);
+      let rand = Math.random() * total;
+      for (let i = 0; i < PRIZES.length; i++) {
+        rand -= PRIZES[i].weight;
+        if (rand <= 0) return i;
+      }
+      return PRIZES.length - 1;
+    }
+
+    function spin() {
+      if (spinning || chances <= 0) return;
+      spinning = true;
+      spinBtn.disabled = true;
+      chances--;
+      chancesNum.textContent = chances;
+
+      const idx = pickPrize();
+      const n   = PRIZES.length;
+      const sliceDeg = 360 / n;
+      const targetDeg = 360 - (idx * sliceDeg + sliceDeg / 2);
+      const extraSpins = (5 + Math.floor(Math.random() * 3)) * 360;
+      currentRotation = currentRotation + extraSpins + (targetDeg - (currentRotation % 360) + 360) % 360;
+
+      wheelInner.style.transform = `rotate(${currentRotation}deg)`;
+
+      setTimeout(() => {
+        spinning = false;
+        spinBtn.disabled = chances <= 0;
+        handleResult(idx);
+      }, 4200);
+    }
+
+    function handleResult(idx) {
+      const prize = PRIZES[idx];
+      const now   = new Date();
+      const time  = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+      if (prize.label === '再来一次') {
+        chances++;
+        chancesNum.textContent = chances;
+        spinBtn.disabled = false;
+      }
+
+      history.unshift({ prize: prize.label, emoji: prize.emoji, time });
+      renderHistory();
+
+      const isWin = prize.label !== '谢谢参与';
+      modalEmoji.textContent = prize.emoji;
+      modalTitle.textContent = isWin ? '恭喜中奖！' : '很遗憾…';
+      modalDesc.textContent  = isWin
+        ? `您获得了 ${prize.label}，请截图保存！`
+        : `${prize.label}，下次一定好运！`;
+      modal.classList.add('show');
+
+      if (isWin) launchConfetti();
+    }
+
+    function renderHistory() {
+      historyList.innerHTML = history.slice(0, 10).map(h =>
+        `<li><span class="prize">${h.emoji} ${h.prize}</span><span>${h.time}</span></li>`
+      ).join('');
+    }
+
+    function renderPrizeList() {
+      prizeList.innerHTML = PRIZES.map(p =>
+        `<li><span class="prize-dot" style="background:${p.color}"></span>${p.emoji} ${p.label}</li>`
+      ).join('');
+    }
+
+    function redeemChances() {
+      const code = redeemInput.value.trim();
+      if (code === REDEEM_CODE) {
+        chances += REDEEM_BONUS;
+        chancesNum.textContent = chances;
+        if (!spinning) spinBtn.disabled = false;
+        redeemInput.value = '';
+        redeemTip.textContent = `兑换成功，已获得 ${REDEEM_BONUS} 次抽奖机会！`;
+        redeemTip.className = 'redeem-tip success';
+      } else if (code) {
+        redeemTip.textContent = '兑换码无效，请重新输入';
+        redeemTip.className = 'redeem-tip error';
+      }
+      setTimeout(() => {
+        redeemTip.textContent = '';
+        redeemTip.className = 'redeem-tip';
+      }, 3000);
+    }
+
+    function launchConfetti() {
+      const colors = ['#ffd700','#ff6b6b','#6bcb77','#4d96ff','#ff6bff','#ff9f43'];
+      for (let i = 0; i < 80; i++) {
+        setTimeout(() => {
+          const el = document.createElement('div');
+          el.className = 'confetti';
+          el.style.left = Math.random() * 100 + 'vw';
+          el.style.background = colors[Math.floor(Math.random() * colors.length)];
+          el.style.animationDuration = (2 + Math.random() * 2) + 's';
+          el.style.width  = (6 + Math.random() * 8) + 'px';
+          el.style.height = (6 + Math.random() * 8) + 'px';
+          el.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+          document.body.appendChild(el);
+          setTimeout(() => el.remove(), 4000);
+        }, i * 30);
+      }
+    }
+
+    function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 30; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + 'vw';
+        p.style.animationDuration = (4 + Math.random() * 6) + 's';
+        p.style.animationDelay = (Math.random() * 6) + 's';
+        container.appendChild(p);
+      }
+    }
+
+    modalBtn.addEventListener('click', () => modal.classList.remove('show'));
+    redeemBtn.addEventListener('click', redeemChances);
+    redeemInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') redeemChances();
+    });
+    spinBtn.addEventListener('click', spin);
+    wheelInner.addEventListener('click', spin);
+
+    window.addEventListener('resize', () => {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      initCanvas();
+    });
+
+    createParticles();
+    renderPrizeList();
+    initCanvas();
+  </script>
+</body>
+</html>

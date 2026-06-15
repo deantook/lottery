@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>刮刮乐抽奖 - 幸运抽奖中心</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0c29;
+      --bg2: #302b63;
+      --bg3: #24243e;
+      --gold: #ffd700;
+      --gold2: #ffaa00;
+      --accent: #ff6b6b;
+      --text: #f0f0f0;
+      --muted: #aaa;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 50%, var(--bg3) 100%);
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    .particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--gold);
+      border-radius: 50%;
+      opacity: 0;
+      animation: float-up linear infinite;
+    }
+    @keyframes float-up {
+      0%   { opacity: 0; transform: translateY(100vh) scale(0); }
+      10%  { opacity: 0.8; }
+      90%  { opacity: 0.4; }
+      100% { opacity: 0; transform: translateY(-10vh) scale(1); }
+    }
+
+    .back-btn {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 50;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.25rem;
+      color: var(--text);
+      text-decoration: none;
+      transition: color 0.2s, opacity 0.2s;
+    }
+    .back-btn svg {
+      width: 1.5rem;
+      height: 1.5rem;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .back-btn:hover {
+      color: var(--gold);
+    }
+
+    header {
+      text-align: center;
+      padding: 2rem 1rem 1rem;
+      z-index: 1;
+    }
+    .organizer-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.45rem 1.25rem;
+      margin-bottom: 1rem;
+      background: rgba(255,215,0,0.08);
+      border: 1px solid rgba(255,215,0,0.35);
+      border-radius: 50px;
+      letter-spacing: 0.06em;
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: var(--gold);
+    }
+    header h1 {
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      background: linear-gradient(90deg, var(--gold), #fff, var(--gold2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.1em;
+      filter: drop-shadow(0 0 20px rgba(255,215,0,0.4));
+    }
+    header p {
+      color: var(--muted);
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .main {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 1rem 1.5rem 3rem;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .scratch-area {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .scratch-card {
+      position: relative;
+      width: min(340px, 90vw);
+      height: 200px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 3px solid var(--gold);
+      box-shadow: 0 0 30px rgba(255,215,0,0.25);
+      cursor: crosshair;
+      touch-action: none;
+    }
+    .scratch-result {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(160deg, #1a1a2e, #16213e);
+      gap: 0.5rem;
+    }
+    .scratch-result .emoji { font-size: 3.5rem; }
+    .scratch-result .label {
+      font-size: 1.2rem;
+      color: var(--gold);
+      font-weight: bold;
+    }
+    .scratch-result .hint {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    canvas#scratchCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .action-btn {
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      border: none;
+      border-radius: 50px;
+      padding: 0.75rem 2rem;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    .action-btn:hover:not(:disabled) { transform: scale(1.05); }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .progress-wrap {
+      width: min(340px, 90vw);
+      text-align: center;
+    }
+    .progress-bar {
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 0.4rem;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      border-radius: 3px;
+      transition: width 0.2s;
+    }
+    .progress-text {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .panel {
+      flex: 1;
+      min-width: 240px;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 1.2rem;
+      backdrop-filter: blur(10px);
+    }
+    .card h3 {
+      font-size: 0.85rem;
+      color: var(--gold);
+      letter-spacing: 0.15em;
+      margin-bottom: 0.8rem;
+    }
+
+    .chances {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chances-num {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: var(--gold);
+      line-height: 1;
+    }
+    .chances-label { color: var(--muted); font-size: 0.85rem; }
+
+    .redeem-wrap {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .redeem-input {
+      flex: 1;
+      min-width: 0;
+      padding: 0.55rem 0.75rem;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .redeem-input:focus { border-color: rgba(255,215,0,0.5); }
+    .redeem-input::placeholder { color: var(--muted); }
+    .redeem-btn {
+      flex-shrink: 0;
+      padding: 0.55rem 0.9rem;
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .redeem-btn:hover { transform: scale(1.03); }
+    .redeem-tip {
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      min-height: 1.2em;
+    }
+    .redeem-tip.success { color: #2ecc71; }
+    .redeem-tip.error { color: var(--accent); }
+
+    .history-list {
+      list-style: none;
+      max-height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .history-list li {
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding: 0.3rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      justify-content: space-between;
+    }
+    .history-list li span.prize { color: var(--text); }
+    .history-list li.empty-msg { color: var(--muted); font-style: italic; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .modal {
+      background: linear-gradient(160deg, #1a1a2e, #16213e);
+      border: 2px solid var(--gold);
+      border-radius: 24px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      max-width: 360px;
+      width: 90%;
+      transform: scale(0.7);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 0 60px rgba(255,215,0,0.3);
+    }
+    .modal-overlay.show .modal { transform: scale(1); }
+    .modal-emoji { font-size: 4rem; margin-bottom: 0.5rem; animation: bounce 0.6s ease infinite alternate; }
+    @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+    .modal h2 { font-size: 1.6rem; color: var(--gold); margin-bottom: 0.5rem; }
+    .modal p  { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.95rem; }
+    .modal-btn {
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      border: none;
+      border-radius: 50px;
+      padding: 0.75rem 2.5rem;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .modal-btn:hover { transform: scale(1.05); }
+
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      top: -10px;
+      z-index: 200;
+      pointer-events: none;
+      animation: confetti-fall linear forwards;
+    }
+    @keyframes confetti-fall {
+      to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+
+    .history-list::-webkit-scrollbar { width: 4px; }
+    .history-list::-webkit-scrollbar-thumb { background: rgba(255,215,0,0.3); border-radius: 2px; }
+
+    .organizer-footer {
+      margin-top: auto;
+      padding: 1.5rem 1rem 2rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      z-index: 1;
+      letter-spacing: 0.05em;
+    }
+    .organizer-footer strong {
+      color: var(--gold);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <a class="back-btn" href="index.html" aria-label="返回首页">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+  </a>
+  <div class="particles" id="particles"></div>
+
+  <header>
+    <div class="organizer-badge">臻瑜电竞 CLUB</div>
+    <h1>✦ 刮刮乐抽奖 ✦</h1>
+    <p>用手指或鼠标刮开涂层，揭晓你的幸运奖品！</p>
+  </header>
+
+  <div class="main">
+    <div class="scratch-area">
+      <div class="scratch-card" id="scratchCard">
+        <div class="scratch-result" id="scratchResult">
+          <span class="emoji" id="resultEmoji">🎁</span>
+          <span class="label" id="resultLabel">???</span>
+          <span class="hint">刮开上方涂层查看奖品</span>
+        </div>
+        <canvas id="scratchCanvas"></canvas>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-text">刮开进度：<span id="progressPct">0</span>%</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <button class="action-btn" id="newCardBtn" disabled>再来一张</button>
+    </div>
+
+    <div class="panel">
+      <div class="card">
+        <div class="chances">
+          <div>
+            <div class="chances-num" id="chancesNum">5</div>
+            <div class="chances-label">剩余抽奖次数</div>
+          </div>
+          <div style="font-size:2.5rem">🎟️</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>兑换次数</h3>
+        <div class="redeem-wrap">
+          <input type="text" class="redeem-input" id="redeemInput" placeholder="输入兑换码" autocomplete="off">
+          <button class="redeem-btn" id="redeemBtn">兑换</button>
+        </div>
+        <p class="redeem-tip" id="redeemTip"></p>
+      </div>
+
+      <div class="card">
+        <h3>中奖记录</h3>
+        <ul class="history-list" id="historyList">
+          <li class="empty-msg">暂无记录，快去刮奖吧！</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer class="organizer-footer"><strong>臻瑜电竞 CLUB</strong></footer>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-emoji" id="modalEmoji">🎉</div>
+      <h2 id="modalTitle">恭喜中奖！</h2>
+      <p id="modalDesc">您获得了 iPhone 16 Pro</p>
+      <button class="modal-btn" id="modalBtn">太棒了！</button>
+    </div>
+  </div>
+
+  <script>
+    const PRIZES = [
+      { label: 'iPhone 16 Pro', emoji: '📱', weight: 1  },
+      { label: 'AirPods Pro',   emoji: '🎧', weight: 3  },
+      { label: '100 元红包',    emoji: '🧧', weight: 8  },
+      { label: '50 元红包',     emoji: '💰', weight: 12 },
+      { label: '谢谢参与',      emoji: '😅', weight: 30 },
+      { label: '再来一次',      emoji: '🔄', weight: 10 },
+      { label: '神秘礼盒',      emoji: '🎁', weight: 5  },
+      { label: '10 元红包',     emoji: '💵', weight: 15 },
+    ];
+
+    let chances = 5;
+    let history = [];
+    let currentPrize = null;
+    let scratching = false;
+    let revealed = false;
+    let cardReady = false;
+
+    const scratchCard   = document.getElementById('scratchCard');
+    const canvas        = document.getElementById('scratchCanvas');
+    const ctx           = canvas.getContext('2d');
+    const resultEmoji   = document.getElementById('resultEmoji');
+    const resultLabel   = document.getElementById('resultLabel');
+    const progressPct   = document.getElementById('progressPct');
+    const progressFill  = document.getElementById('progressFill');
+    const newCardBtn    = document.getElementById('newCardBtn');
+    const chancesNum    = document.getElementById('chancesNum');
+    const historyList   = document.getElementById('historyList');
+    const modal         = document.getElementById('modal');
+    const modalEmoji    = document.getElementById('modalEmoji');
+    const modalTitle    = document.getElementById('modalTitle');
+    const modalDesc     = document.getElementById('modalDesc');
+    const modalBtn      = document.getElementById('modalBtn');
+    const redeemInput   = document.getElementById('redeemInput');
+    const redeemBtn     = document.getElementById('redeemBtn');
+    const redeemTip     = document.getElementById('redeemTip');
+
+    const REDEEM_CODE = 'AAAAAA';
+    const REDEEM_BONUS = 1;
+
+    function pickPrize() {
+      const total = PRIZES.reduce((s, p) => s + p.weight, 0);
+      let rand = Math.random() * total;
+      for (let i = 0; i < PRIZES.length; i++) {
+        rand -= PRIZES[i].weight;
+        if (rand <= 0) return PRIZES[i];
+      }
+      return PRIZES[PRIZES.length - 1];
+    }
+
+    function initCanvas() {
+      const rect = scratchCard.getBoundingClientRect();
+      canvas.width  = rect.width * 2;
+      canvas.height = rect.height * 2;
+      ctx.scale(2, 2);
+
+      const w = rect.width, h = rect.height;
+      const gradient = ctx.createLinearGradient(0, 0, w, h);
+      gradient.addColorStop(0, '#bbb');
+      gradient.addColorStop(0.5, '#ddd');
+      gradient.addColorStop(1, '#999');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = '#666';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('刮一刮，有惊喜', w / 2, h / 2 - 8);
+      ctx.font = '14px sans-serif';
+      ctx.fillStyle = '#888';
+      ctx.fillText('👆 用手指或鼠标刮开', w / 2, h / 2 + 16);
+
+      ctx.globalCompositeOperation = 'destination-out';
+    }
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+      };
+    }
+
+    function scratch(x, y) {
+      const rect = canvas.getBoundingClientRect();
+      const radius = 24;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      checkProgress();
+    }
+
+    function checkProgress() {
+      const w = canvas.width, h = canvas.height;
+      const data = ctx.getImageData(0, 0, w, h).data;
+      let transparent = 0;
+      const step = 16;
+      for (let i = 3; i < data.length; i += 4 * step) {
+        if (data[i] === 0) transparent++;
+      }
+      const total = data.length / (4 * step);
+      const pct = Math.round((transparent / total) * 100);
+      progressPct.textContent = pct;
+      progressFill.style.width = pct + '%';
+
+      if (pct >= 55 && !revealed) {
+        revealed = true;
+        canvas.style.opacity = '0';
+        canvas.style.transition = 'opacity 0.5s';
+        canvas.style.pointerEvents = 'none';
+        newCardBtn.disabled = chances <= 0;
+        showResult();
+      }
+    }
+
+    function showResult() {
+      if (!currentPrize) return;
+      const now  = new Date();
+      const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+      if (currentPrize.label === '再来一次') {
+        chances++;
+        chancesNum.textContent = chances;
+      }
+
+      history.unshift({ prize: currentPrize.label, emoji: currentPrize.emoji, time });
+      renderHistory();
+
+      const isWin = currentPrize.label !== '谢谢参与';
+      modalEmoji.textContent = currentPrize.emoji;
+      modalTitle.textContent = isWin ? '恭喜中奖！' : '很遗憾…';
+      modalDesc.textContent  = isWin
+        ? `您获得了 ${currentPrize.label}，请截图保存！`
+        : `${currentPrize.label}，下次一定好运！`;
+      modal.classList.add('show');
+
+      if (isWin) launchConfetti();
+    }
+
+    function newCard() {
+      if (cardReady && !revealed) return;
+      if (chances <= 0) return;
+
+      chances--;
+      chancesNum.textContent = chances;
+
+      currentPrize = pickPrize();
+      resultEmoji.textContent = currentPrize.emoji;
+      resultLabel.textContent = currentPrize.label;
+      revealed = false;
+      cardReady = true;
+      newCardBtn.disabled = true;
+
+      canvas.style.opacity = '1';
+      canvas.style.pointerEvents = 'auto';
+      progressPct.textContent = '0';
+      progressFill.style.width = '0%';
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      initCanvas();
+    }
+
+    function renderHistory() {
+      historyList.innerHTML = history.slice(0, 10).map(h =>
+        `<li><span class="prize">${h.emoji} ${h.prize}</span><span>${h.time}</span></li>`
+      ).join('');
+    }
+
+    function redeemChances() {
+      const code = redeemInput.value.trim();
+      if (code === REDEEM_CODE) {
+        chances += REDEEM_BONUS;
+        chancesNum.textContent = chances;
+        if (revealed || !cardReady) newCardBtn.disabled = false;
+        redeemInput.value = '';
+        redeemTip.textContent = `兑换成功，已获得 ${REDEEM_BONUS} 次抽奖机会！`;
+        redeemTip.className = 'redeem-tip success';
+      } else if (code) {
+        redeemTip.textContent = '兑换码无效，请重新输入';
+        redeemTip.className = 'redeem-tip error';
+      }
+      setTimeout(() => {
+        redeemTip.textContent = '';
+        redeemTip.className = 'redeem-tip';
+      }, 3000);
+    }
+
+    function launchConfetti() {
+      const colors = ['#ffd700','#ff6b6b','#6bcb77','#4d96ff','#ff6bff','#ff9f43'];
+      for (let i = 0; i < 80; i++) {
+        setTimeout(() => {
+          const el = document.createElement('div');
+          el.className = 'confetti';
+          el.style.left = Math.random() * 100 + 'vw';
+          el.style.background = colors[Math.floor(Math.random() * colors.length)];
+          el.style.animationDuration = (2 + Math.random() * 2) + 's';
+          el.style.width  = (6 + Math.random() * 8) + 'px';
+          el.style.height = (6 + Math.random() * 8) + 'px';
+          el.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+          document.body.appendChild(el);
+          setTimeout(() => el.remove(), 4000);
+        }, i * 30);
+      }
+    }
+
+    function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 30; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + 'vw';
+        p.style.animationDuration = (4 + Math.random() * 6) + 's';
+        p.style.animationDelay = (Math.random() * 6) + 's';
+        container.appendChild(p);
+      }
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (!cardReady || revealed) return;
+      scratching = true;
+      const { x, y } = getPos(e);
+      scratch(x, y);
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      if (!scratching || revealed) return;
+      const { x, y } = getPos(e);
+      scratch(x, y);
+    });
+    canvas.addEventListener('mouseup', () => { scratching = false; });
+    canvas.addEventListener('mouseleave', () => { scratching = false; });
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (!cardReady || revealed) return;
+      scratching = true;
+      const { x, y } = getPos(e);
+      scratch(x, y);
+    }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!scratching || revealed) return;
+      const { x, y } = getPos(e);
+      scratch(x, y);
+    }, { passive: false });
+    canvas.addEventListener('touchend', () => { scratching = false; });
+
+    newCardBtn.addEventListener('click', newCard);
+    modalBtn.addEventListener('click', () => modal.classList.remove('show'));
+    redeemBtn.addEventListener('click', redeemChances);
+    redeemInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') redeemChances();
+    });
+
+    window.addEventListener('resize', () => {
+      if (cardReady && !revealed) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
+        initCanvas();
+      }
+    });
+
+    createParticles();
+    newCard();
+  </script>
+</body>
+</html>

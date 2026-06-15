@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>幸运抽奖中心</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0c29;
+      --bg2: #302b63;
+      --bg3: #24243e;
+      --gold: #ffd700;
+      --gold2: #ffaa00;
+      --accent: #ff6b6b;
+      --text: #f0f0f0;
+      --muted: #aaa;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 50%, var(--bg3) 100%);
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    .particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--gold);
+      border-radius: 50%;
+      opacity: 0;
+      animation: float-up linear infinite;
+    }
+    @keyframes float-up {
+      0%   { opacity: 0; transform: translateY(100vh) scale(0); }
+      10%  { opacity: 0.8; }
+      90%  { opacity: 0.4; }
+      100% { opacity: 0; transform: translateY(-10vh) scale(1); }
+    }
+
+    header {
+      text-align: center;
+      padding: 3rem 1rem 2rem;
+      z-index: 1;
+    }
+    .organizer-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.45rem 1.25rem;
+      margin-bottom: 1.25rem;
+      background: rgba(255,215,0,0.08);
+      border: 1px solid rgba(255,215,0,0.35);
+      border-radius: 50px;
+      letter-spacing: 0.06em;
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: var(--gold);
+    }
+    header h1 {
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      background: linear-gradient(90deg, var(--gold), #fff, var(--gold2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.1em;
+      filter: drop-shadow(0 0 20px rgba(255,215,0,0.4));
+    }
+    header p {
+      color: var(--muted);
+      margin-top: 0.75rem;
+      font-size: 1rem;
+    }
+
+    .menu {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      padding: 1rem 1.5rem 4rem;
+      max-width: 960px;
+      width: 100%;
+      z-index: 1;
+    }
+
+    .menu-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 2.5rem 1.5rem;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 24px;
+      backdrop-filter: blur(10px);
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+      cursor: pointer;
+    }
+    .menu-card:hover {
+      transform: translateY(-8px);
+      border-color: rgba(255,215,0,0.5);
+      box-shadow: 0 12px 40px rgba(255,215,0,0.15);
+    }
+    .menu-card .icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      line-height: 1;
+    }
+    .menu-card h2 {
+      font-size: 1.4rem;
+      color: var(--gold);
+      margin-bottom: 0.6rem;
+    }
+    .menu-card p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .menu-card .tag {
+      margin-top: 1.2rem;
+      padding: 0.35rem 1rem;
+      border-radius: 50px;
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      color: #333;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+
+    .organizer-footer {
+      margin-top: auto;
+      padding: 1.5rem 1rem 2rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      z-index: 1;
+      letter-spacing: 0.05em;
+    }
+    .organizer-footer strong {
+      color: var(--gold);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="particles" id="particles"></div>
+
+  <header>
+    <div class="organizer-badge">臻瑜电竞 CLUB</div>
+    <h1>✦ 幸运抽奖中心 ✦</h1>
+    <p>选择你喜欢的抽奖方式，赢取惊喜好礼！</p>
+  </header>
+
+  <nav class="menu">
+    <a class="menu-card" href="wheel.html">
+      <div class="icon">🎡</div>
+      <h2>转盘抽奖</h2>
+      <p>转动命运之轮，指针停在哪里就是什么奖</p>
+      <span class="tag">立即参与 →</span>
+    </a>
+    <a class="menu-card" href="grid.html">
+      <div class="icon">🎯</div>
+      <h2>九宫格抽奖</h2>
+      <p>经典跑马灯九宫格，灯光闪烁定格大奖</p>
+      <span class="tag">立即参与 →</span>
+    </a>
+    <a class="menu-card" href="scratch.html">
+      <div class="icon">🎫</div>
+      <h2>刮刮乐抽奖</h2>
+      <p>亲手刮开涂层，揭晓你的幸运奖品</p>
+      <span class="tag">立即参与 →</span>
+    </a>
+  </nav>
+
+  <footer class="organizer-footer"><strong>臻瑜电竞 CLUB</strong></footer>
+
+  <script>
+    (function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 30; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + 'vw';
+        p.style.animationDuration = (4 + Math.random() * 6) + 's';
+        p.style.animationDelay = (Math.random() * 6) + 's';
+        container.appendChild(p);
+      }
+    })();
+  </script>
+</body>
+</html>
