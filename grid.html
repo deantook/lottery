@@ -397,6 +397,7 @@
     </div>
   </div>
 
+  <script src="prizes.config.js"></script>
   <script src="prizes-loader.js"></script>
   <script>
     // 跑马灯顺序：外圈 8 格，跳过中心
@@ -589,7 +590,7 @@
       if (chances <= 0) cells[4].classList.add('disabled');
     }).catch((err) => {
       console.error(err);
-      alert('奖品配置加载失败，请通过本地服务器访问页面');
+      alert('奖品配置加载失败，请检查网络后刷新重试');
     });
   </script>
 </body>

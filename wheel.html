@@ -462,6 +462,7 @@
     </div>
   </div>
 
+  <script src="prizes.config.js"></script>
   <script src="prizes-loader.js"></script>
   <script>
     let chances = 5;
@@ -674,7 +675,7 @@
       initCanvas();
     }).catch((err) => {
       console.error(err);
-      alert('奖品配置加载失败，请通过本地服务器访问页面');
+      alert('奖品配置加载失败，请检查网络后刷新重试');
     });
   </script>
 </body>
