@@ -1,5 +1,3 @@
-// 由 build-config.js 根据 prizes.json 自动生成，请勿直接编辑
-// 修改奖品后运行: node build-config.js
 window.PRIZES_CONFIG = {
   "initialChances": 0,
   "redeemBonus": 1,
