@@ -405,18 +405,8 @@
     </div>
   </div>
 
+  <script src="prizes-loader.js"></script>
   <script>
-    const PRIZES = [
-      { label: 'iPhone 16 Pro', emoji: '📱', weight: 1  },
-      { label: 'AirPods Pro',   emoji: '🎧', weight: 3  },
-      { label: '100 元红包',    emoji: '🧧', weight: 8  },
-      { label: '50 元红包',     emoji: '💰', weight: 12 },
-      { label: '谢谢参与',      emoji: '😅', weight: 30 },
-      { label: '再来一次',      emoji: '🔄', weight: 10 },
-      { label: '神秘礼盒',      emoji: '🎁', weight: 5  },
-      { label: '10 元红包',     emoji: '💵', weight: 15 },
-    ];
-
     // 跑马灯顺序：外圈 8 格，跳过中心
     const ORDER = [0, 1, 2, 5, 8, 7, 6, 3];
 
@@ -424,6 +414,8 @@
     let running = false;
     let history = [];
     let cells = [];
+    let redeemCode = 'AAAAAA';
+    let redeemBonus = 1;
 
     const grid        = document.getElementById('grid');
     const chancesNum  = document.getElementById('chancesNum');
@@ -437,10 +429,12 @@
     const redeemBtn   = document.getElementById('redeemBtn');
     const redeemTip   = document.getElementById('redeemTip');
 
-    const REDEEM_CODE = 'AAAAAA';
-    const REDEEM_BONUS = 1;
+    function getPrizes() {
+      return PrizeApp.prizes;
+    }
 
     function buildGrid() {
+      const prizes = getPrizes();
       grid.innerHTML = '';
       cells = [];
       for (let i = 0; i < 9; i++) {
@@ -451,23 +445,13 @@
           el.innerHTML = '<span class="emoji">🎲</span><span class="label">开始</span>';
           el.addEventListener('click', startLottery);
         } else {
-          const prize = PRIZES[i < 4 ? i : i - 1];
+          const prize = prizes[i < 4 ? i : i - 1];
           el.innerHTML = `<span class="emoji">${prize.emoji}</span><span class="label">${prize.label}</span>`;
           el.dataset.index = String(i < 4 ? i : i - 1);
         }
         grid.appendChild(el);
         cells.push(el);
       }
-    }
-
-    function pickPrize() {
-      const total = PRIZES.reduce((s, p) => s + p.weight, 0);
-      let rand = Math.random() * total;
-      for (let i = 0; i < PRIZES.length; i++) {
-        rand -= PRIZES[i].weight;
-        if (rand <= 0) return i;
-      }
-      return PRIZES.length - 1;
     }
 
     function clearActive() {
@@ -481,7 +465,7 @@
       chancesNum.textContent = chances;
       cells[4].classList.add('disabled');
 
-      const targetIdx = pickPrize();
+      const targetIdx = PrizeApp.pickIndex();
       const targetGridPos = targetIdx < 4 ? targetIdx : targetIdx + 1;
       const targetOrderIdx = ORDER.indexOf(targetGridPos);
       const finalSteps = ORDER.length * 4 + targetOrderIdx;
@@ -513,11 +497,11 @@
       cells[4].classList.remove('disabled');
       if (chances <= 0) cells[4].classList.add('disabled');
 
-      const prize = PRIZES[idx];
+      const prize = getPrizes()[idx];
       const now   = new Date();
       const time  = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
 
-      if (prize.label === '再来一次') {
+      if (PrizeApp.isRetry(prize)) {
         chances++;
         chancesNum.textContent = chances;
         cells[4].classList.remove('disabled');
@@ -526,7 +510,7 @@
       history.unshift({ prize: prize.label, emoji: prize.emoji, time });
       renderHistory();
 
-      const isWin = prize.label !== '谢谢参与';
+      const isWin = PrizeApp.isWin(prize);
       modalEmoji.textContent = prize.emoji;
       modalTitle.textContent = isWin ? '恭喜中奖！' : '很遗憾…';
       modalDesc.textContent  = isWin
@@ -545,12 +529,12 @@
 
     function redeemChances() {
       const code = redeemInput.value.trim();
-      if (code === REDEEM_CODE) {
-        chances += REDEEM_BONUS;
+      if (code === redeemCode) {
+        chances += redeemBonus;
         chancesNum.textContent = chances;
         if (!running) cells[4].classList.remove('disabled');
         redeemInput.value = '';
-        redeemTip.textContent = `兑换成功，已获得 ${REDEEM_BONUS} 次抽奖机会！`;
+        redeemTip.textContent = `兑换成功，已获得 ${redeemBonus} 次抽奖机会！`;
         redeemTip.className = 'redeem-tip success';
       } else if (code) {
         redeemTip.textContent = '兑换码无效，请重新输入';
@@ -599,7 +583,20 @@
     });
 
     createParticles();
-    buildGrid();
+
+    PrizeApp.load().then((config) => {
+      chances = config.initialChances ?? 5;
+      redeemCode = config.redeemCode ?? 'AAAAAA';
+      redeemBonus = config.redeemBonus ?? 1;
+      chancesNum.textContent = chances;
+      if (PrizeApp.prizes.length !== 8) {
+        alert('九宫格抽奖需要 prizes.json 中配置 8 个奖品');
+      }
+      buildGrid();
+    }).catch((err) => {
+      console.error(err);
+      alert('奖品配置加载失败，请通过本地服务器访问页面');
+    });
   </script>
 </body>
 </html>

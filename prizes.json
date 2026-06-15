@@ -1,0 +1,57 @@
+{
+  "initialChances": 5,
+  "redeemCode": "AAAAAA",
+  "redeemBonus": 1,
+  "prizes": [
+    {
+      "label": "iPhone 16 Pro",
+      "emoji": "📱",
+      "color": "#e74c3c",
+      "weight": 1
+    },
+    {
+      "label": "AirPods Pro",
+      "emoji": "🎧",
+      "color": "#3498db",
+      "weight": 3
+    },
+    {
+      "label": "100 元红包",
+      "emoji": "🧧",
+      "color": "#e67e22",
+      "weight": 8
+    },
+    {
+      "label": "50 元红包",
+      "emoji": "💰",
+      "color": "#f1c40f",
+      "weight": 12
+    },
+    {
+      "label": "谢谢参与",
+      "emoji": "😅",
+      "color": "#95a5a6",
+      "weight": 30,
+      "win": false
+    },
+    {
+      "label": "再来一次",
+      "emoji": "🔄",
+      "color": "#1abc9c",
+      "weight": 10,
+      "retry": true
+    },
+    {
+      "label": "神秘礼盒",
+      "emoji": "🎁",
+      "color": "#9b59b6",
+      "weight": 5
+    },
+    {
+      "label": "10 元红包",
+      "emoji": "💵",
+      "color": "#2ecc71",
+      "weight": 15000
+    }
+  ]
+}

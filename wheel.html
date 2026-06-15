@@ -470,22 +470,14 @@
     </div>
   </div>
 
+  <script src="prizes-loader.js"></script>
   <script>
-    const PRIZES = [
-      { label: 'iPhone 16 Pro', emoji: '📱', color: '#e74c3c', weight: 1  },
-      { label: 'AirPods Pro',   emoji: '🎧', color: '#3498db', weight: 3  },
-      { label: '100 元红包',    emoji: '🧧', color: '#e67e22', weight: 8  },
-      { label: '50 元红包',     emoji: '💰', color: '#f1c40f', weight: 12 },
-      { label: '谢谢参与',      emoji: '😅', color: '#95a5a6', weight: 30 },
-      { label: '再来一次',      emoji: '🔄', color: '#1abc9c', weight: 10 },
-      { label: '神秘礼盒',      emoji: '🎁', color: '#9b59b6', weight: 5  },
-      { label: '10 元红包',     emoji: '💵', color: '#2ecc71', weight: 15 },
-    ];
-
     let chances = 5;
     let spinning = false;
     let currentRotation = 0;
     let history = [];
+    let redeemCode = 'AAAAAA';
+    let redeemBonus = 1;
 
     const wheelInner  = document.getElementById('wheelInner');
     const canvas      = document.getElementById('wheel');
@@ -503,8 +495,9 @@
     const redeemBtn   = document.getElementById('redeemBtn');
     const redeemTip   = document.getElementById('redeemTip');
 
-    const REDEEM_CODE = 'AAAAAA';
-    const REDEEM_BONUS = 1;
+    function getPrizes() {
+      return PrizeApp.prizes;
+    }
 
     function initCanvas() {
       const size = canvas.parentElement.offsetWidth;
@@ -515,12 +508,13 @@
     }
 
     function drawWheel() {
+      const prizes = getPrizes();
       const size = canvas.width / 2;
       const cx = size / 2, cy = size / 2, r = size / 2 - 2;
-      const n = PRIZES.length;
+      const n = prizes.length;
       const slice = (2 * Math.PI) / n;
 
-      PRIZES.forEach((prize, i) => {
+      prizes.forEach((prize, i) => {
         const start = i * slice - Math.PI / 2;
         const end   = start + slice;
 
@@ -552,16 +546,6 @@
       ctx.fill();
     }
 
-    function pickPrize() {
-      const total = PRIZES.reduce((s, p) => s + p.weight, 0);
-      let rand = Math.random() * total;
-      for (let i = 0; i < PRIZES.length; i++) {
-        rand -= PRIZES[i].weight;
-        if (rand <= 0) return i;
-      }
-      return PRIZES.length - 1;
-    }
-
     function spin() {
       if (spinning || chances <= 0) return;
       spinning = true;
@@ -569,8 +553,9 @@
       chances--;
       chancesNum.textContent = chances;
 
-      const idx = pickPrize();
-      const n   = PRIZES.length;
+      const prizes = getPrizes();
+      const idx = PrizeApp.pickIndex();
+      const n   = prizes.length;
       const sliceDeg = 360 / n;
       const targetDeg = 360 - (idx * sliceDeg + sliceDeg / 2);
       const extraSpins = (5 + Math.floor(Math.random() * 3)) * 360;
@@ -586,11 +571,11 @@
     }
 
     function handleResult(idx) {
-      const prize = PRIZES[idx];
+      const prize = getPrizes()[idx];
       const now   = new Date();
       const time  = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
 
-      if (prize.label === '再来一次') {
+      if (PrizeApp.isRetry(prize)) {
         chances++;
         chancesNum.textContent = chances;
         spinBtn.disabled = false;
@@ -599,7 +584,7 @@
       history.unshift({ prize: prize.label, emoji: prize.emoji, time });
       renderHistory();
 
-      const isWin = prize.label !== '谢谢参与';
+      const isWin = PrizeApp.isWin(prize);
       modalEmoji.textContent = prize.emoji;
       modalTitle.textContent = isWin ? '恭喜中奖！' : '很遗憾…';
       modalDesc.textContent  = isWin
@@ -617,19 +602,19 @@
     }
 
     function renderPrizeList() {
-      prizeList.innerHTML = PRIZES.map(p =>
+      prizeList.innerHTML = getPrizes().map(p =>
         `<li><span class="prize-dot" style="background:${p.color}"></span>${p.emoji} ${p.label}</li>`
       ).join('');
     }
 
     function redeemChances() {
       const code = redeemInput.value.trim();
-      if (code === REDEEM_CODE) {
-        chances += REDEEM_BONUS;
+      if (code === redeemCode) {
+        chances += redeemBonus;
         chancesNum.textContent = chances;
         if (!spinning) spinBtn.disabled = false;
         redeemInput.value = '';
-        redeemTip.textContent = `兑换成功，已获得 ${REDEEM_BONUS} 次抽奖机会！`;
+        redeemTip.textContent = `兑换成功，已获得 ${redeemBonus} 次抽奖机会！`;
         redeemTip.className = 'redeem-tip success';
       } else if (code) {
         redeemTip.textContent = '兑换码无效，请重新输入';
@@ -685,8 +670,18 @@
     });
 
     createParticles();
-    renderPrizeList();
-    initCanvas();
+
+    PrizeApp.load().then((config) => {
+      chances = config.initialChances ?? 5;
+      redeemCode = config.redeemCode ?? 'AAAAAA';
+      redeemBonus = config.redeemBonus ?? 1;
+      chancesNum.textContent = chances;
+      renderPrizeList();
+      initCanvas();
+    }).catch((err) => {
+      console.error(err);
+      alert('奖品配置加载失败，请通过本地服务器访问页面');
+    });
   </script>
 </body>
 </html>
