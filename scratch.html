@@ -272,13 +272,6 @@
       transition: transform 0.15s;
     }
     .redeem-btn:hover { transform: scale(1.03); }
-    .redeem-tip {
-      margin-top: 0.5rem;
-      font-size: 0.8rem;
-      min-height: 1.2em;
-    }
-    .redeem-tip.success { color: #2ecc71; }
-    .redeem-tip.error { color: var(--accent); }
 
     .history-list {
       list-style: none;
@@ -424,10 +417,9 @@
       <div class="card">
         <h3>兑换次数</h3>
         <div class="redeem-wrap">
-          <input type="text" class="redeem-input" id="redeemInput" placeholder="输入兑换码" autocomplete="off">
+          <input type="text" class="redeem-input" id="redeemInput" placeholder="输入 6 位兑换码" autocomplete="off" maxlength="6" inputmode="numeric">
           <button class="redeem-btn" id="redeemBtn">兑换</button>
         </div>
-        <p class="redeem-tip" id="redeemTip"></p>
       </div>
 
       <div class="card">
@@ -458,8 +450,6 @@
     let scratching = false;
     let revealed = false;
     let cardReady = false;
-    let redeemCode = 'AAAAAA';
-    let redeemBonus = 1;
 
     const scratchCard   = document.getElementById('scratchCard');
     const canvas        = document.getElementById('scratchCanvas');
@@ -478,7 +468,6 @@
     const modalBtn      = document.getElementById('modalBtn');
     const redeemInput   = document.getElementById('redeemInput');
     const redeemBtn     = document.getElementById('redeemBtn');
-    const redeemTip     = document.getElementById('redeemTip');
 
     function pickPrize() {
       return PrizeApp.prizes[PrizeApp.pickIndex()];
@@ -570,6 +559,7 @@
       modalDesc.textContent  = isWin
         ? `您获得了 ${currentPrize.label}，请截图保存！`
         : `${currentPrize.label}，下次一定好运！`;
+      modalBtn.textContent = '太棒了！';
       modal.classList.add('show');
 
       if (isWin) launchConfetti();
@@ -605,23 +595,29 @@
       ).join('');
     }
 
+    function showRedeemModal(success, message) {
+      modalEmoji.textContent = success ? '🎟️' : '❌';
+      modalTitle.textContent = success ? '兑换成功' : '兑换失败';
+      modalDesc.textContent = message;
+      modalBtn.textContent = '知道了';
+      modal.classList.add('show');
+    }
+
     function redeemChances() {
       const code = redeemInput.value.trim();
-      if (code === redeemCode) {
-        chances += redeemBonus;
+      if (!code) return;
+      const result = PrizeApp.redeem(code);
+      if (result.ok) {
+        chances += result.bonus;
         chancesNum.textContent = chances;
         if (revealed || !cardReady) newCardBtn.disabled = false;
         redeemInput.value = '';
-        redeemTip.textContent = `兑换成功，已获得 ${redeemBonus} 次抽奖机会！`;
-        redeemTip.className = 'redeem-tip success';
-      } else if (code) {
-        redeemTip.textContent = '兑换码无效，请重新输入';
-        redeemTip.className = 'redeem-tip error';
+        showRedeemModal(true, `兑换码有效，已获得 ${result.bonus} 次抽奖机会！`);
+      } else if (result.reason === 'used_on_device') {
+        showRedeemModal(false, '兑换码无效，请重新输入');
+      } else {
+        showRedeemModal(false, '兑换码无效，请重新输入');
       }
-      setTimeout(() => {
-        redeemTip.textContent = '';
-        redeemTip.className = 'redeem-tip';
-      }, 3000);
     }
 
     function launchConfetti() {
@@ -702,8 +698,6 @@
 
     PrizeApp.load().then((config) => {
       chances = config.initialChances ?? 5;
-      redeemCode = config.redeemCode ?? 'AAAAAA';
-      redeemBonus = config.redeemBonus ?? 1;
       chancesNum.textContent = chances;
       newCard();
     }).catch((err) => {

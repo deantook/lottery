@@ -1,6 +1,9 @@
 window.PrizeApp = {
   config: {},
   prizes: [],
+  storageKey: 'zyclub_redeem_records',
+  deviceIdKey: 'zyclub_device_id',
+  legacyStorageKey: 'zyclub_used_redeem_codes',
 
   async load() {
     const res = await fetch('prizes.json');
@@ -13,7 +16,85 @@ window.PrizeApp = {
       retry: !!prize.retry,
     }));
     if (this.prizes.length === 0) throw new Error('prizes.json 中未配置奖品');
+    this.migrateLegacyUsedCodes();
+    this.getDeviceId();
     return this.config;
+  },
+
+  getDeviceId() {
+    let id = localStorage.getItem(this.deviceIdKey);
+    if (!id) {
+      id = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `dev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+      localStorage.setItem(this.deviceIdKey, id);
+    }
+    return id;
+  },
+
+  getRedeemRecords() {
+    try {
+      const records = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+      return Array.isArray(records) ? records : [];
+    } catch {
+      return [];
+    }
+  },
+
+  getUsedCodesOnDevice() {
+    const deviceId = this.getDeviceId();
+    return this.getRedeemRecords()
+      .filter((record) => record.deviceId === deviceId)
+      .map((record) => String(record.code));
+  },
+
+  isCodeUsedOnDevice(code) {
+    return this.getUsedCodesOnDevice().includes(String(code).trim());
+  },
+
+  markCodeUsed(code) {
+    const normalized = String(code).trim();
+    if (this.isCodeUsedOnDevice(normalized)) return;
+    const records = this.getRedeemRecords();
+    records.push({
+      deviceId: this.getDeviceId(),
+      code: normalized,
+      time: Date.now(),
+    });
+    localStorage.setItem(this.storageKey, JSON.stringify(records));
+  },
+
+  migrateLegacyUsedCodes() {
+    const legacy = localStorage.getItem(this.legacyStorageKey);
+    if (!legacy) return;
+    try {
+      const codes = JSON.parse(legacy);
+      if (Array.isArray(codes)) {
+        codes.forEach((code) => this.markCodeUsed(String(code)));
+      }
+    } catch {
+      // ignore invalid legacy data
+    }
+    localStorage.removeItem(this.legacyStorageKey);
+  },
+
+  getRedeemCodes() {
+    const codes = [...(this.config.redeemCodes || [])];
+    if (this.config.redeemCode) codes.push(this.config.redeemCode);
+    return codes.map(String);
+  },
+
+  redeem(code) {
+    const normalized = String(code).trim();
+    if (!normalized) return { ok: false, reason: 'empty' };
+    if (!this.getRedeemCodes().includes(normalized)) {
+      return { ok: false, reason: 'invalid' };
+    }
+    if (this.isCodeUsedOnDevice(normalized)) {
+      return { ok: false, reason: 'used_on_device' };
+    }
+    this.markCodeUsed(normalized);
+    return { ok: true, bonus: this.config.redeemBonus ?? 1 };
   },
 
   pickIndex() {
