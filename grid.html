@@ -151,6 +151,10 @@
       transition: background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
     }
     .grid-cell .emoji { font-size: 1.6rem; margin-bottom: 0.25rem; }
+    .prize-logo { object-fit: contain; display: block; }
+    .prize-logo--grid { width: 36px; height: 36px; margin-bottom: 0.25rem; }
+    .prize-logo--modal { width: 80px; height: 80px; margin: 0 auto; }
+    .prize-logo--history { width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-right: 0.25rem; }
     .grid-cell .label { line-height: 1.3; color: var(--muted); }
     .grid-cell.active {
       background: rgba(255,215,0,0.2);
@@ -390,7 +394,7 @@
 
   <div class="modal-overlay" id="modal">
     <div class="modal">
-      <div class="modal-emoji" id="modalEmoji">🎉</div>
+      <div class="modal-emoji" id="modalEmoji" data-logo-size="modal">🎉</div>
       <h2 id="modalTitle">恭喜中奖！</h2>
       <p id="modalDesc">您获得了 iPhone 16 Pro</p>
       <button class="modal-btn" id="modalBtn">太棒了！</button>
@@ -442,7 +446,10 @@
           el.addEventListener('click', startLottery);
         } else {
           const prize = prizes[i < 4 ? i : i - 1];
-          el.innerHTML = `<span class="emoji">${prize.emoji}</span><span class="label">${prize.label}</span>`;
+          const icon = PrizeApp.hasPrizeLogo()
+            ? PrizeApp.prizeIconHtml('grid')
+            : `<span class="emoji">${prize.emoji || ''}</span>`;
+          el.innerHTML = `${icon}<span class="label">${prize.label}</span>`;
           el.dataset.index = String(i < 4 ? i : i - 1);
         }
         grid.appendChild(el);
@@ -501,7 +508,7 @@
       renderHistory();
 
       const isWin = PrizeApp.isWin(prize);
-      modalEmoji.textContent = prize.emoji;
+      PrizeApp.setIconElement(modalEmoji, prize);
       modalTitle.textContent = isWin ? '恭喜中奖！' : '很遗憾…';
       modalDesc.textContent  = isWin
         ? `您获得了 ${prize.label}，请截图保存！`
@@ -513,9 +520,12 @@
     }
 
     function renderHistory() {
-      historyList.innerHTML = history.slice(0, 10).map(h =>
-        `<li><span class="prize">${h.emoji} ${h.prize}</span><span>${h.time}</span></li>`
-      ).join('');
+      historyList.innerHTML = history.slice(0, 10).map(h => {
+        const icon = PrizeApp.hasPrizeLogo()
+          ? PrizeApp.prizeIconHtml('history')
+          : `${h.emoji} `;
+        return `<li><span class="prize">${icon}${h.prize}</span><span>${h.time}</span></li>`;
+      }).join('');
     }
 
     function showRedeemModal(success, message) {

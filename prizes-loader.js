@@ -20,6 +20,7 @@ window.PrizeApp = {
     if (this.prizes.length === 0) throw new Error('奖品配置为空');
     this.migrateLegacyUsedCodes();
     this.getDeviceId();
+    if (this.hasPrizeLogo()) this.loadPrizeLogoImage();
     return this.config;
   },
 
@@ -136,5 +137,51 @@ window.PrizeApp = {
 
   isRetry(prize) {
     return !!prize.retry;
+  },
+
+  getPrizeLogo() {
+    return this.config.prizeLogo || '';
+  },
+
+  hasPrizeLogo() {
+    return !!this.getPrizeLogo();
+  },
+
+  loadPrizeLogoImage() {
+    const logo = this.getPrizeLogo();
+    if (!logo) return Promise.resolve(null);
+    if (this._prizeLogoImage?.complete) return Promise.resolve(this._prizeLogoImage);
+    if (this._prizeLogoPromise) return this._prizeLogoPromise;
+    this._prizeLogoPromise = new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        this._prizeLogoImage = img;
+        resolve(img);
+      };
+      img.onerror = () => resolve(null);
+      img.src = logo;
+    });
+    return this._prizeLogoPromise;
+  },
+
+  getPrizeLogoImage() {
+    return this._prizeLogoImage || null;
+  },
+
+  prizeIconHtml(size = '') {
+    const logo = this.getPrizeLogo();
+    if (!logo) return '';
+    const sizeClass = size ? ` prize-logo--${size}` : '';
+    return `<img class="prize-logo${sizeClass}" src="${logo}" alt="奖品">`;
+  },
+
+  setIconElement(el, prize) {
+    if (!el) return;
+    const logo = this.getPrizeLogo();
+    if (logo) {
+      el.innerHTML = this.prizeIconHtml(el.dataset.logoSize || '');
+    } else {
+      el.textContent = prize?.emoji || '🎁';
+    }
   },
 };

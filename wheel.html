@@ -252,6 +252,10 @@
       border-radius: 50%;
       flex-shrink: 0;
     }
+    .prize-logo { object-fit: contain; display: block; flex-shrink: 0; }
+    .prize-logo--list { width: 24px; height: 24px; }
+    .prize-logo--modal { width: 80px; height: 80px; margin: 0 auto; }
+    .prize-logo--history { width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-right: 0.25rem; }
 
     .chances {
       display: flex;
@@ -455,7 +459,7 @@
 
   <div class="modal-overlay" id="modal">
     <div class="modal">
-      <div class="modal-emoji" id="modalEmoji">🎉</div>
+      <div class="modal-emoji" id="modalEmoji" data-logo-size="modal">🎉</div>
       <h2 id="modalTitle">恭喜中奖！</h2>
       <p id="modalDesc">您获得了 iPhone 16 Pro</p>
       <button class="modal-btn" id="modalBtn">太棒了！</button>
@@ -485,6 +489,8 @@
     const redeemInput = document.getElementById('redeemInput');
     const redeemBtn   = document.getElementById('redeemBtn');
 
+    let wheelLogo     = null;
+
     function getPrizes() {
       return PrizeApp.prizes;
     }
@@ -495,12 +501,64 @@
       return chances;
     }
 
-    function initCanvas() {
+    async function initCanvas() {
       const size = canvas.parentElement.offsetWidth;
       canvas.width  = size * 2;
       canvas.height = size * 2;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(2, 2);
+      wheelLogo = PrizeApp.getPrizeLogoImage() || await PrizeApp.loadPrizeLogoImage();
       drawWheel();
+    }
+
+    function needsLabelFlip(angle) {
+      const a = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      return a > Math.PI / 2 && a < Math.PI * 3 / 2;
+    }
+
+    function drawCircularLogo(x, y, diameter) {
+      const radius = diameter / 2;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, radius - 1, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(wheelLogo, x - radius + 1, y - radius + 1, diameter - 2, diameter - 2);
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    function drawSliceContent(prize, midAngle, cx, cy, r, fontSize, logoSize) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(midAngle);
+      ctx.translate(r * 0.64, 0);
+      if (needsLabelFlip(midAngle)) ctx.rotate(Math.PI);
+
+      const label = prize.label;
+      const logoX = -logoSize * 0.55;
+      const textX = logoSize * 0.55 + fontSize * 0.5;
+
+      if (wheelLogo) {
+        drawCircularLogo(logoX, 0, logoSize);
+      }
+
+      ctx.font = `bold ${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`;
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.65)';
+      ctx.shadowBlur = 3;
+      ctx.shadowOffsetY = 1;
+      ctx.fillText(label, wheelLogo ? textX : 0, 0);
+      ctx.restore();
     }
 
     function drawWheel() {
@@ -509,6 +567,11 @@
       const cx = size / 2, cy = size / 2, r = size / 2 - 2;
       const n = prizes.length;
       const slice = (2 * Math.PI) / n;
+      const fontSize = Math.max(10, Math.floor(size / 28));
+      const logoSize = Math.max(22, Math.floor(size / 13));
+      const hubR = size * 0.14;
+
+      ctx.clearRect(0, 0, size, size);
 
       prizes.forEach((prize, i) => {
         const start = i * slice - Math.PI / 2;
@@ -520,26 +583,31 @@
         ctx.closePath();
         ctx.fillStyle = prize.color;
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+      });
 
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(start + slice / 2);
-        ctx.textAlign = 'right';
-        ctx.fillStyle = '#fff';
-        ctx.font = `bold ${Math.floor(size / 22)}px sans-serif`;
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 4;
-        ctx.fillText(`${prize.emoji} ${prize.label}`, r - 12, 5);
-        ctx.restore();
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < n; i++) {
+        const angle = i * slice - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+        ctx.stroke();
+      }
+
+      prizes.forEach((prize, i) => {
+        const start = i * slice - Math.PI / 2;
+        const midAngle = start + slice / 2;
+        drawSliceContent(prize, midAngle, cx, cy, r, fontSize, logoSize);
       });
 
       ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.12, 0, 2 * Math.PI);
+      ctx.arc(cx, cy, hubR, 0, Math.PI * 2);
       ctx.fillStyle = '#fff';
       ctx.fill();
+      ctx.strokeStyle = 'rgba(255,215,0,0.5)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
 
     function spin() {
@@ -575,7 +643,7 @@
       renderHistory();
 
       const isWin = PrizeApp.isWin(prize);
-      modalEmoji.textContent = prize.emoji;
+      PrizeApp.setIconElement(modalEmoji, prize);
       modalTitle.textContent = isWin ? '恭喜中奖！' : '很遗憾…';
       modalDesc.textContent  = isWin
         ? `您获得了 ${prize.label}，请截图保存！`
@@ -587,15 +655,24 @@
     }
 
     function renderHistory() {
-      historyList.innerHTML = history.slice(0, 10).map(h =>
-        `<li><span class="prize">${h.emoji} ${h.prize}</span><span>${h.time}</span></li>`
-      ).join('');
+      historyList.innerHTML = history.slice(0, 10).map(h => {
+        const icon = PrizeApp.hasPrizeLogo()
+          ? PrizeApp.prizeIconHtml('history')
+          : `${h.emoji} `;
+        return `<li><span class="prize">${icon}${h.prize}</span><span>${h.time}</span></li>`;
+      }).join('');
     }
 
     function renderPrizeList() {
-      prizeList.innerHTML = getPrizes().map(p =>
-        `<li><span class="prize-dot" style="background:${p.color}"></span>${p.emoji} ${p.label}</li>`
-      ).join('');
+      const icon = PrizeApp.hasPrizeLogo()
+        ? PrizeApp.prizeIconHtml('list')
+        : '';
+      prizeList.innerHTML = getPrizes().map(p => {
+        const prefix = PrizeApp.hasPrizeLogo()
+          ? icon
+          : `${p.emoji || ''} `;
+        return `<li><span class="prize-dot" style="background:${p.color}"></span>${prefix}${p.label}</li>`;
+      }).join('');
     }
 
     function showRedeemModal(success, message) {
@@ -668,11 +745,11 @@
 
     createParticles();
 
-    PrizeApp.load().then(() => {
+    PrizeApp.load().then(async () => {
       syncChances();
       spinBtn.disabled = chances <= 0;
       renderPrizeList();
-      initCanvas();
+      await initCanvas();
     }).catch((err) => {
       console.error(err);
       alert('奖品配置加载失败，请刷新重试');

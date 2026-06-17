@@ -1,4 +1,5 @@
 window.PRIZES_CONFIG = {
+  "prizeLogo": "prize-logo.jpg",
   "initialChances": 0,
   "redeemBonus": 1,
   "redeemCodes": [
@@ -25,53 +26,44 @@ window.PRIZES_CONFIG = {
   ],
   "prizes": [
     {
-      "label": "iPhone 16 Pro",
-      "emoji": "📱",
+      "label": "288w",
       "color": "#e74c3c",
+      "weight": 10000
+    },
+    {
+      "label": "388w",
+      "color": "#3498db",
+      "weight": 10000
+    },
+    {
+      "label": "488w",
+      "color": "#e67e22",
+      "weight": 1000
+    },
+    {
+      "label": "588w",
+      "color": "#f1c40f",
+      "weight": 100
+    },
+    {
+      "label": "688w",
+      "color": "#95a5a6",
       "weight": 1
     },
     {
-      "label": "AirPods Pro",
-      "emoji": "🎧",
-      "color": "#3498db",
-      "weight": 3
-    },
-    {
-      "label": "100 元红包",
-      "emoji": "🧧",
-      "color": "#e67e22",
-      "weight": 8
-    },
-    {
-      "label": "50 元红包",
-      "emoji": "💰",
-      "color": "#f1c40f",
-      "weight": 12
-    },
-    {
-      "label": "谢谢参与",
-      "emoji": "😅",
-      "color": "#95a5a6",
-      "weight": 30,
-      "win": false
-    },
-    {
-      "label": "20 元红包",
-      "emoji": "💴",
+      "label": "788w",
       "color": "#1abc9c",
-      "weight": 10
+      "weight": 1
     },
     {
-      "label": "神秘礼盒",
-      "emoji": "🎁",
+      "label": "888w",
       "color": "#9b59b6",
-      "weight": 5
+      "weight": 1
     },
     {
-      "label": "10 元红包",
-      "emoji": "💵",
+      "label": "1088w",
       "color": "#2ecc71",
-      "weight": 15000
+      "weight": 1
     }
   ]
 };
